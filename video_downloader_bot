@@ -1,0 +1,47 @@
+#!/usr/bin/python3
+
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, CallbackContext
+import yt_dlp
+import os
+import asyncio
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text(f'''Hello {update.effective_user.first_name}. Let's start.
+    Available commands are:
+    /start or /help
+    /dl
+                                ''')
+
+async def download_video(addr: str) -> str:
+    ydl_opts = {'format': 'mp4/best[ext=mp4]', 'cachedir': False}
+    ydl = yt_dlp.YoutubeDL(ydl_opts)
+    info = await asyncio.to_thread(ydl.extract_info, addr, download=False)
+    filename = ydl.prepare_filename(info)
+    await asyncio.to_thread(ydl.download, [addr])
+    return filename
+
+async def collect_info(update: Update, context: CallbackContext) -> None:
+	pass
+async def dl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message.from_user.id not in ALLOWED_IDS:
+        await update.message.reply_text(f"{update.effective_user.first_name} ({update.message.from_user.id}), you are not allowed to use this bot.")
+    else:
+        addr = update.message.text.split()[-1]
+        await update.message.reply_text(f"Downloading {addr} ...", disable_web_page_preview=True)
+        filename = await download_video(addr)
+        print(f"{addr} downloaded as \"{filename}\"")
+        await context.bot.send_video(chat_id=update.message['chat']['id'], filename = filename, video=open(filename, 'rb'))
+        os.remove(filename)
+
+TOKEN=os.environ['TOKEN']
+ALLOWED_IDS = list(map(int, os.environ['ALLOWED_IDS'].split(","))) if 'ALLOWED_IDS' in os.environ else []
+
+app = ApplicationBuilder().token(TOKEN).build()
+
+app.add_handler(CommandHandler("help", start))
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("dl", dl))
+app.add_handler(MessageHandler(filters = None, callback = collect_info))
+
+app.run_polling()

@@ -1,0 +1,17 @@
+[Unit]
+Description=Video Downloader bot
+Wants=network.target
+
+[Service]
+EnvironmentFile=-/etc/sysconfig/video_downloader_bot
+ExecStart=/usr/bin/video_downloader_bot
+Restart=always
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=tmpfs
+MemoryDenyWriteExecute=yes
+DynamicUser=yes
+WorkingDirectory=/tmp
+
+[Install]
+WantedBy=multi-user.target
