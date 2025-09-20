@@ -35,7 +35,7 @@ async def dl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         with open(filename, 'rb') as video:
             try:
                 await context.bot.send_video(chat_id=update.message['chat']['id'], filename = filename, video = video, caption=f"Downloaded from: {addr}")
-                print(f"{addr} downloaded as \"{filename}\"")
+                print(f"{addr} sent as \"{filename}\"")
             except NetworkError as e:
                 error_msg = str(e).lower()
                 if "request entity too large" in error_msg or "payload too large" in error_msg:
@@ -46,23 +46,28 @@ async def dl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                             f"🔗 Original: {addr}",
                             disable_web_page_preview=True
                     )
+                    print(f"{addr} NOT sent: {str(e)}")
                 elif "timeout" in error_msg:
                     await update.message.reply_text(
                             f"⏰ Upload timeout - file might be too large or connection slow\n"
                             f"📁 Size: {file_size / (1024*1024):.1f} MB"
                     )
+                    print(f"{addr} NOT sent: {str(e)}")
                 else:
                     await update.message.reply_text(f"🌐 Network error: {str(e)}")
+                    print(f"{addr} NOT sent: {str(e)}")
             except BadRequest as e:
                 await update.message.reply_text(f"❌ Bad request: {str(e)}")
+                print(f"{addr} NOT sent: {str(e)}")
             except TimedOut:
                 await update.message.reply_text(
                         f"⏰ Request timed out\n"
                         f"📁 File size: {file_size / (1024*1024):.1f} MB"
                 )
+                print(f"{addr} NOT sent: {str(e)}")
             except Exception as e:
                 await update.message.reply_text(f"❌ Unexpected error: {str(e)}")
-                print(f"{addr} NOT downloaded: {e}")
+                print(f"{addr} NOT sent: {str(e)}")
         os.remove(filename)
 
 TOKEN=os.environ['TOKEN']
