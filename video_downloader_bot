@@ -1,10 +1,11 @@
 #!/usr/bin/python3
 
 from telegram import Update
+from telegram.error import NetworkError, BadRequest, TimedOut
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, CallbackContext
-import yt_dlp
-import os
 import asyncio
+import os
+import yt_dlp
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(f'''Hello {update.effective_user.first_name}. Let's start.
@@ -30,8 +31,38 @@ async def dl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         addr = update.message.text.split()[-1]
         await update.message.reply_text(f"Downloading {addr} ...", disable_web_page_preview=True)
         filename = await download_video(addr)
-        print(f"{addr} downloaded as \"{filename}\"")
-        await context.bot.send_video(chat_id=update.message['chat']['id'], filename = filename, video=open(filename, 'rb'))
+        file_size = os.path.getsize(filename)
+        with open(filename, 'rb') as video:
+            try:
+                await context.bot.send_video(chat_id=update.message['chat']['id'], filename = filename, video = video, caption=f"Downloaded from: {addr}")
+                print(f"{addr} downloaded as \"{filename}\"")
+            except NetworkError as e:
+                error_msg = str(e).lower()
+                if "request entity too large" in error_msg or "payload too large" in error_msg:
+                    await update.message.reply_text(
+                            f"❌ File too large for Telegram!\n"
+                            f"📁 Size: {file_size / (1024*1024):.1f} MB\n"
+                            f"📋 Limit: ~50 MB\n\n"
+                            f"🔗 Original: {addr}",
+                            disable_web_page_preview=True
+                    )
+                elif "timeout" in error_msg:
+                    await update.message.reply_text(
+                            f"⏰ Upload timeout - file might be too large or connection slow\n"
+                            f"📁 Size: {file_size / (1024*1024):.1f} MB"
+                    )
+                else:
+                    await update.message.reply_text(f"🌐 Network error: {str(e)}")
+            except BadRequest as e:
+                await update.message.reply_text(f"❌ Bad request: {str(e)}")
+            except TimedOut:
+                await update.message.reply_text(
+                        f"⏰ Request timed out\n"
+                        f"📁 File size: {file_size / (1024*1024):.1f} MB"
+                )
+            except Exception as e:
+                await update.message.reply_text(f"❌ Unexpected error: {str(e)}")
+                print(f"{addr} NOT downloaded: {e}")
         os.remove(filename)
 
 TOKEN=os.environ['TOKEN']
