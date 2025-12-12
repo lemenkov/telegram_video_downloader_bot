@@ -15,7 +15,24 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                                 ''')
 
 async def download_video(addr: str) -> str:
-    ydl_opts = {'format': 'mp4/best[ext=mp4]', 'cachedir': False}
+    ydl_opts = {
+        'format': (
+            # AV1 1080p (26MB in your example - format 399)
+            'bestvideo[vcodec^=av01][height<=1080]+140/'
+            # AV1 720p
+            'bestvideo[vcodec^=av01][height<=720]+140/'
+            # AV1 any resolution
+            'bestvideo[vcodec^=av01]+bestaudio[ext=m4a]/'
+            # H.264 720p (safer compatibility)
+            'bestvideo[vcodec^=avc1][height<=720]+bestaudio[ext=m4a]/'
+            # H.264 480p
+            'bestvideo[vcodec^=avc1][height<=480]+bestaudio[ext=m4a]/'
+            'worst'
+        ),
+        'merge_output_format': 'mp4',
+        'cachedir': False,
+        'outtmpl': '/tmp/%(title)s.%(ext)s'
+    }
     ydl = yt_dlp.YoutubeDL(ydl_opts)
     info = await asyncio.to_thread(ydl.extract_info, addr, download=False)
     filename = ydl.prepare_filename(info)
