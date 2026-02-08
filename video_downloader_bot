@@ -5,6 +5,7 @@ from telegram.error import NetworkError, BadRequest, TimedOut
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, CallbackContext
 import asyncio
 import os
+import sys
 import yt_dlp
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -86,6 +87,12 @@ async def dl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 await update.message.reply_text(f"❌ Unexpected error: {str(e)}")
                 print(f"{addr} NOT sent: {str(e)}")
         os.remove(filename)
+
+# Ensure event loop exists (required for Python 3.10+, harmless on older versions)
+try:
+    asyncio.get_event_loop()
+except RuntimeError:
+    asyncio.set_event_loop(asyncio.new_event_loop())
 
 TOKEN=os.environ['TOKEN']
 ALLOWED_IDS = list(map(int, os.environ['ALLOWED_IDS'].split(","))) if 'ALLOWED_IDS' in os.environ else []
