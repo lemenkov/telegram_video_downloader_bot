@@ -6,7 +6,6 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, Messa
 import asyncio
 import logging
 import os
-import sys
 import yt_dlp
 
 # Set up logging
