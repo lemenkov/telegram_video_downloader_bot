@@ -39,7 +39,8 @@ async def download_video(addr: str) -> str:
         ),
         'merge_output_format': 'mp4',
         'cachedir': False,
-        'outtmpl': '/tmp/%(title)s.%(ext)s'
+        'outtmpl': '/tmp/%(title)s.%(ext)s',
+        'extractor_args': {'youtube': {'player_client': ['android'], 'js_runtimes': 'node:/usr/bin/node'}}
     }
     ydl = yt_dlp.YoutubeDL(ydl_opts)
     info = await asyncio.to_thread(ydl.extract_info, addr, download=False)
