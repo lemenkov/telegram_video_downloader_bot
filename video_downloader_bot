@@ -110,7 +110,7 @@ try:
 except RuntimeError:
     asyncio.set_event_loop(asyncio.new_event_loop())
 
-TOKEN=os.environ['TOKEN']
+TOKEN = os.environ['TOKEN']
 ALLOWED_IDS = list(map(int, os.environ['ALLOWED_IDS'].split(","))) if 'ALLOWED_IDS' in os.environ else []
 
 app = ApplicationBuilder().token(TOKEN).build()
