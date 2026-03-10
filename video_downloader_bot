@@ -104,6 +104,19 @@ async def dl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         os.remove(filename)
 
+# Error handler for the application
+async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle errors gracefully, especially network issues during polling"""
+    error = context.error
+
+    # Silently ignore network errors during polling - the library will auto-retry
+    if isinstance(error, (NetworkError, TimedOut)):
+        logger.debug(f"Network error during polling (will auto-retry): {error}")
+        return
+
+    # Log other errors normally
+    logger.error(f"Update {update} caused error: {error}", exc_info=context.error)
+
 # Ensure event loop exists (required for Python 3.10+, harmless on older versions)
 try:
     asyncio.get_event_loop()
@@ -119,6 +132,9 @@ app.add_handler(CommandHandler("help", start))
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("dl", dl))
 app.add_handler(MessageHandler(filters=filters.ALL, callback=collect_info))
+
+# Register the error handler
+app.add_error_handler(error_handler)
 
 logger.info("Video Downloader Bot started")
 app.run_polling()
