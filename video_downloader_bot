@@ -1,4 +1,6 @@
 #!/usr/bin/python3
+# SPDX-FileCopyrightText: 2025-2026 Peter Lemenkov <lemenkov@gmail.com>
+# SPDX-License-Identifier: MIT
 
 from telegram import Update
 from telegram.error import NetworkError, BadRequest, TimedOut
