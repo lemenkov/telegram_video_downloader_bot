@@ -2,20 +2,25 @@
 # SPDX-FileCopyrightText: 2025-2026 Peter Lemenkov <lemenkov@gmail.com>
 # SPDX-License-Identifier: MIT
 
-from telegram import Update
-from telegram.error import NetworkError, BadRequest, TimedOut
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, CallbackContext, filters
 import asyncio
 import logging
 import os
 import re
+
 import yt_dlp
+from telegram import Update
+from telegram.error import BadRequest, NetworkError, TimedOut
+from telegram.ext import (
+    ApplicationBuilder,
+    CallbackContext,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    filters,
+)
 
 # Set up logging
-logging.basicConfig(
-    format='%(levelname)s - %(message)s',
-    level=logging.INFO
-)
+logging.basicConfig(format="%(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Suppress noisy httpx INFO logs (API polling)
@@ -24,7 +29,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 def parse_time(t: str) -> float:
     """Convert HH:MM:SS.s or MM:SS.s or SS.s to seconds"""
-    parts = t.split(':')
+    parts = t.split(":")
     parts = [float(p) for p in parts]
     if len(parts) == 3:
         return parts[0] * 3600 + parts[1] * 60 + parts[2]
@@ -34,41 +39,47 @@ def parse_time(t: str) -> float:
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(f'''Hello {update.effective_user.first_name}. Let's start.
+    await update.message.reply_text(f"""Hello {update.effective_user.first_name}. Let's start.
     Available commands are:
     /start or /help
     /dl
-                                ''')
+                                """)
 
 
-async def download_video(addr: str, start: float = None, end: float = None) -> str:
+async def download_video(
+    addr: str, start: float | None = None, end: float | None = None
+) -> str:
     ydl_opts = {
-        'format': (
+        "format": (
             # AV1 1080p (26MB in your example - format 399)
-            'bestvideo[vcodec^=av01][height<=1080]+140/'
+            "bestvideo[vcodec^=av01][height<=1080]+140/"
             # AV1 720p
-            'bestvideo[vcodec^=av01][height<=720]+140/'
+            "bestvideo[vcodec^=av01][height<=720]+140/"
             # AV1 any resolution
-            'bestvideo[vcodec^=av01]+bestaudio[ext=m4a]/'
+            "bestvideo[vcodec^=av01]+bestaudio[ext=m4a]/"
             # H.264 720p (safer compatibility)
-            'bestvideo[vcodec^=avc1][height<=720]+bestaudio[ext=m4a]/'
+            "bestvideo[vcodec^=avc1][height<=720]+bestaudio[ext=m4a]/"
             # H.264 480p
-            'bestvideo[vcodec^=avc1][height<=480]+bestaudio[ext=m4a]/'
-            'worst'
+            "bestvideo[vcodec^=avc1][height<=480]+bestaudio[ext=m4a]/"
+            "worst"
         ),
-        'merge_output_format': 'mp4',
-        'cachedir': False,
-        'outtmpl': '/tmp/%(title)s.%(ext)s',
-        'extractor_args': {'youtube': {'player_client': ['android'], 'js_runtimes': 'node:/usr/bin/node'}},
+        "merge_output_format": "mp4",
+        "cachedir": False,
+        "outtmpl": "/tmp/%(title)s.%(ext)s",
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android"],
+                "js_runtimes": "node:/usr/bin/node",
+            }
+        },
     }
 
     # Add fragment range if specified
     if start is not None or end is not None:
-        ydl_opts['download_ranges'] = yt_dlp.utils.download_range_func(
-            None,
-            [(float(start or 0), float(end))]
+        ydl_opts["download_ranges"] = yt_dlp.utils.download_range_func(
+            None, [(float(start or 0), float(end))]
         )
-        ydl_opts['force_keyframes_at_cuts'] = True
+        ydl_opts["force_keyframes_at_cuts"] = True
 
     ydl = yt_dlp.YoutubeDL(ydl_opts)
     info = await asyncio.to_thread(ydl.extract_info, addr, download=False)
@@ -78,16 +89,22 @@ async def download_video(addr: str, start: float = None, end: float = None) -> s
 
 
 async def collect_info(update: Update, context: CallbackContext) -> None:
-	pass
+    pass
+
+
 async def dl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message.from_user.id not in ALLOWED_IDS:
-        await update.message.reply_text(f"{update.effective_user.first_name} ({update.message.from_user.id}), you are not allowed to use this bot.")
+        await update.message.reply_text(
+            f"{update.effective_user.first_name} ({update.message.from_user.id}), you are not allowed to use this bot."
+        )
     else:
         parts = update.message.text.split()
         addr = parts[1] if len(parts) > 1 else None
 
         if not addr:
-            await update.message.reply_text("Please provide a URL: /dl <url> [start-end]")
+            await update.message.reply_text(
+                "Please provide a URL: /dl <url> [start-end]"
+            )
             return
 
         start = None
@@ -96,7 +113,7 @@ async def dl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # Parse optional time range e.g. 00:00:01.5-00:02:01.0
         if len(parts) > 2:
             time_range = parts[2]
-            match = re.match(r'^([\d:.]+)-([\d:.]+)$', time_range)
+            match = re.match(r"^([\d:.]+)-([\d:.]+)$", time_range)
             if match:
                 start = parse_time(match.group(1))
                 end = parse_time(match.group(2))
@@ -109,51 +126,62 @@ async def dl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         # Try to send "Downloading..." message with retry
         try:
-            await update.message.reply_text(f"Downloading {addr} ...", disable_web_page_preview=True)
+            await update.message.reply_text(
+                f"Downloading {addr} ...", disable_web_page_preview=True
+            )
         except (NetworkError, TimedOut) as e:
             logger.warning(f"Failed to send 'Downloading' message (network issue): {e}")
             # Continue anyway - the download can still work
 
         filename = await download_video(addr, start, end)
         file_size = os.path.getsize(filename)
-        with open(filename, 'rb') as video:
+        with open(filename, "rb") as video:
             try:
-                await context.bot.send_video(chat_id=update.message['chat']['id'], filename = filename, video = video, caption=f"Downloaded from: {addr}")
-                logger.info(f"{addr} sent as \"{filename}\"")
+                await context.bot.send_video(
+                    chat_id=update.message["chat"]["id"],
+                    filename=filename,
+                    video=video,
+                    caption=f"Downloaded from: {addr}",
+                )
+                logger.info(f'{addr} sent as "{filename}"')
             except NetworkError as e:
                 error_msg = str(e).lower()
-                if "request entity too large" in error_msg or "payload too large" in error_msg:
+                if (
+                    "request entity too large" in error_msg
+                    or "payload too large" in error_msg
+                ):
                     await update.message.reply_text(
-                            f"❌ File too large for Telegram!\n"
-                            f"📁 Size: {file_size / (1024*1024):.1f} MB\n"
-                            f"📋 Limit: ~50 MB\n\n"
-                            f"🔗 Original: {addr}",
-                            disable_web_page_preview=True
+                        f"❌ File too large for Telegram!\n"
+                        f"📁 Size: {file_size / (1024 * 1024):.1f} MB\n"
+                        f"📋 Limit: ~50 MB\n\n"
+                        f"🔗 Original: {addr}",
+                        disable_web_page_preview=True,
                     )
-                    logger.warning(f"{addr} NOT sent: {str(e)}")
+                    logger.warning(f"{addr} NOT sent: {e!s}")
                 elif "timeout" in error_msg:
                     await update.message.reply_text(
-                            f"⏰ Upload timeout - file might be too large or connection slow\n"
-                            f"📁 Size: {file_size / (1024*1024):.1f} MB"
+                        f"⏰ Upload timeout - file might be too large or connection slow\n"
+                        f"📁 Size: {file_size / (1024 * 1024):.1f} MB"
                     )
-                    logger.warning(f"{addr} NOT sent: {str(e)}")
+                    logger.warning(f"{addr} NOT sent: {e!s}")
                 else:
-                    await update.message.reply_text(f"🌐 Network error: {str(e)}")
-                    logger.warning(f"{addr} NOT sent: {str(e)}")
+                    await update.message.reply_text(f"🌐 Network error: {e!s}")
+                    logger.warning(f"{addr} NOT sent: {e!s}")
             except BadRequest as e:
-                await update.message.reply_text(f"❌ Bad request: {str(e)}")
-                logger.error(f"{addr} NOT sent: {str(e)}")
+                await update.message.reply_text(f"❌ Bad request: {e!s}")
+                logger.error(f"{addr} NOT sent: {e!s}")
             except TimedOut as e:
                 await update.message.reply_text(
-                        f"⏰ Request timed out\n"
-                        f"📁 File size: {file_size / (1024*1024):.1f} MB"
+                    f"⏰ Request timed out\n"
+                    f"📁 File size: {file_size / (1024 * 1024):.1f} MB"
                 )
-                logger.warning(f"{addr} NOT sent: {str(e)}")
+                logger.warning(f"{addr} NOT sent: {e!s}")
             except Exception as e:
-                await update.message.reply_text(f"❌ Unexpected error: {str(e)}")
-                logger.error(f"{addr} NOT sent: {str(e)}")
+                await update.message.reply_text(f"❌ Unexpected error: {e!s}")
+                logger.error(f"{addr} NOT sent: {e!s}")
 
         os.remove(filename)
+
 
 # Error handler for the application
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -168,14 +196,19 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     # Log other errors normally
     logger.error(f"Update {update} caused error: {error}", exc_info=context.error)
 
+
 # Ensure event loop exists (required for Python 3.10+, harmless on older versions)
 try:
     asyncio.get_event_loop()
 except RuntimeError:
     asyncio.set_event_loop(asyncio.new_event_loop())
 
-TOKEN = os.environ['TOKEN']
-ALLOWED_IDS = list(map(int, os.environ['ALLOWED_IDS'].split(","))) if 'ALLOWED_IDS' in os.environ else []
+TOKEN = os.environ["TOKEN"]
+ALLOWED_IDS = (
+    list(map(int, os.environ["ALLOWED_IDS"].split(",")))
+    if "ALLOWED_IDS" in os.environ
+    else []
+)
 
 app = ApplicationBuilder().token(TOKEN).build()
 

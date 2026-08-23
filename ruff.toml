@@ -1,0 +1,16 @@
+extend-include = ["video_downloader_bot"]
+
+target-version = "py313"
+
+[lint]
+select = ["E4", "E7", "E9", "F", "W", "I", "UP", "B", "ASYNC", "DTZ", "RUF"]
+ignore = [
+    # Top-level handler deliberately catches everything so the bot survives
+    # unexpected errors and reports them to the user.
+    "BLE001",
+    # The expensive work (yt-dlp download) already runs via asyncio.to_thread.
+    # What remains is a stat() and an open() on a just-written, cached file,
+    # in a bot restricted to an allowlist. Not worth an async file layer.
+    "ASYNC230",
+    "ASYNC240",
+]
